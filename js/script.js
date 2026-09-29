@@ -1,16 +1,31 @@
 const API_URL = 'https://tyradex.app/api/v1';
 const generationSelect = document.querySelector('#generation');
+const languageSelect = document.querySelector('#language');
 const sortSelect = document.querySelector('#sort');
 const typeFilters = document.querySelector('#types');
 const main = document.querySelector('main');
 const cache = new Map();
+const displayedPokemon = new WeakMap();
 const typeColors = {
-  Acier: '#246A79', Combat: '#9B3030', Dragon: '#1C6ABB', Eau: '#3979C6',
-  Électrik: '#C99D00', Fée: '#BD5795', Feu: '#D46B20', Glace: '#398E91',
-  Insecte: '#619D14', Normal: '#A8A77A', Plante: '#43865A', Poison: '#8D4794',
-  Psy: '#CD5A67', Roche: '#887A45', Sol: '#A56D37', Spectre: '#66517F',
-  Ténèbres: '#514A53', Vol: '#647EB6',
-};
+  "Plante": "#78C850",
+  "Feu": "#F08030",
+  "Eau": "#6890F0",
+  "Insecte": "#A8B820",
+  "Normal": "#A8A878",
+  "Poison": "#A040A0",
+  "Électrik": "#F8D030",
+  "Sol": "#E0C068",
+  "Vol": "#A890F0",
+  "Combat": "#C03028",
+  "Psy": "#F85888",
+  "Roche": "#B8A038",
+  "Spectre": "#705898",
+  "Glace": "#98D8D8",
+  "Dragon": "#7038F8",
+  "Ténèbres": "#705848",
+  "Acier": "#B8B8D0",
+  "Fée": "#EE99AC"
+}; 
 
 let selectedType = 'all';
 let currentPokemonList = [];
@@ -33,6 +48,7 @@ class Pokémon {
     this.id = data.pokedex_id ?? data.pokedexId;
     this.image = data.sprites?.regular ?? data.image;
     this.name = data.name?.fr ?? data.name;
+    this.names = typeof data.name === 'object' ? data.name : null;
     this.apiTypes = data.types ?? data.apiTypes ?? [];
     this.arrTypes = this.apiTypes.map((type) => new Type(type));
     this.hp = data.stats?.hp ?? data.stats?.HP;
@@ -43,8 +59,13 @@ class Pokémon {
     this.speed = data.stats?.vit ?? data.stats?.speed;
   }
 
+  getName() {
+    return this.names?.[languageSelect.value] || this.name;
+  }
+
   displayCard() {
     const article = document.createElement('article');
+    displayedPokemon.set(article, this);
     const color = this.arrTypes[0]?.color || '#777777';
     article.style.borderColor = color;
     article.style.backgroundColor = color;
@@ -54,7 +75,7 @@ class Pokémon {
     if (this.image) {
       const image = document.createElement('img');
       image.src = this.image;
-      image.alt = this.name;
+      image.alt = this.getName();
       image.loading = 'lazy';
       picture.append(image);
     }
@@ -64,7 +85,7 @@ class Pokémon {
     typeLabel.className = 'types';
     typeLabel.textContent = this.arrTypes.map((type) => type.name).join(' / ') || 'Inconnu';
     const title = document.createElement('h2');
-    title.textContent = this.name;
+    title.textContent = this.getName();
     const stats = document.createElement('ol');
     for (const [label, value] of [
       ['Points de vie', this.hp], ['Attaque', this.attack], ['Défense', this.defense],
@@ -209,6 +230,14 @@ async function loadGeneration() {
 }
 
 generationSelect.addEventListener('change', loadGeneration);
+languageSelect.addEventListener('change', () => {
+  for (const article of main.querySelectorAll('article')) {
+    const name = displayedPokemon.get(article).getName();
+    article.querySelector('h2').textContent = name;
+    const image = article.querySelector('img');
+    if (image) image.alt = name;
+  }
+});
 sortSelect.addEventListener('change', () => {
   if (currentPokemonList.length) renderPokemon(currentPokemonList);
 });
