@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pokédex Tyradex</title>
+    <link rel="stylesheet" href="./css/normalize.css" />
+    <link rel="stylesheet" href="./css/style.css" />
+  </head>
+  <body>
+    <h2>Sélectionner la génération de Pokémon :</h2>
+    <section id="filtre">
+      <div class="select">
+        <select id="generation" aria-label="Génération de Pokémon">
+          <option value="1">Génération 1</option>
+          <option value="2">Génération 2</option>
+          <option value="3">Génération 3</option>
+          <option value="4">Génération 4</option>
+          <option value="5">Génération 5</option>
+          <option value="6">Génération 6</option>
+          <option value="7">Génération 7</option>
+          <option value="8">Génération 8</option>
+          <option value="9">Génération 9</option>
+        </select>
+      </div>
+      <div id="types"></div>
+    </section>
+
+    <main aria-live="polite"></main>
+    <footer>Données fournies par <a href="https://tyradex.app">Tyradex</a>.</footer>
+    <script src="./js/script.js"></script>
+  </body>
+</html>
