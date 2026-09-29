@@ -24,7 +24,21 @@
           <option value="9">Génération 9</option>
         </select>
       </div>
-      <div id="types"></div>
+      <label class="sort-label" for="sort">Trier les Pokémon par :</label>
+      <div class="select">
+        <select id="sort">
+          <option value="name">Nom (A à Z)</option>
+          <option value="hp">Points de vie (décroissant)</option>
+          <option value="attack">Attaque (décroissant)</option>
+          <option value="defense">Défense (décroissant)</option>
+          <option value="special_attack">Attaque spéciale (décroissant)</option>
+          <option value="special_defense">Défense spéciale (décroissant)</option>
+          <option value="speed">Vitesse (décroissant)</option>
+          <option value="type">Type (A à Z)</option>
+        </select>
+      </div>
+      <h2 class="types-title">Filtrer par type :</h2>
+      <div id="types" role="group" aria-label="Types de Pokémon"></div>
     </section>
 
     <main aria-live="polite"></main>

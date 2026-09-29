@@ -1,19 +1,86 @@
 const API_URL = 'https://tyradex.app/api/v1';
 const generationSelect = document.querySelector('#generation');
+const sortSelect = document.querySelector('#sort');
 const typeFilters = document.querySelector('#types');
 const main = document.querySelector('main');
 const cache = new Map();
-
-let selectedType = 'all';
-let requestNumber = 0;
-
 const typeColors = {
   Acier: '#246A79', Combat: '#9B3030', Dragon: '#1C6ABB', Eau: '#3979C6',
   Électrik: '#C99D00', Fée: '#BD5795', Feu: '#D46B20', Glace: '#398E91',
-  Insecte: '#619D14', Normal: '#777777', Plante: '#43865A', Poison: '#8D4794',
+  Insecte: '#619D14', Normal: '#A8A77A', Plante: '#43865A', Poison: '#8D4794',
   Psy: '#CD5A67', Roche: '#887A45', Sol: '#A56D37', Spectre: '#66517F',
   Ténèbres: '#514A53', Vol: '#647EB6',
 };
+
+let selectedType = 'all';
+let currentPokemonList = [];
+let requestNumber = 0;
+
+class Type {
+  constructor(data) {
+    this.name = data.name;
+    this.image = data.image;
+    this.color = this.getColorHexa();
+  }
+
+  getColorHexa() {
+    return typeColors[this.name] || '#777777';
+  }
+}
+
+class Pokémon {
+  constructor(data) {
+    this.id = data.pokedex_id ?? data.pokedexId;
+    this.image = data.sprites?.regular ?? data.image;
+    this.name = data.name?.fr ?? data.name;
+    this.apiTypes = data.types ?? data.apiTypes ?? [];
+    this.arrTypes = this.apiTypes.map((type) => new Type(type));
+    this.hp = data.stats?.hp ?? data.stats?.HP;
+    this.attack = data.stats?.atk ?? data.stats?.attack;
+    this.defense = data.stats?.def ?? data.stats?.defense;
+    this.special_attack = data.stats?.spe_atk ?? data.stats?.special_attack;
+    this.special_defense = data.stats?.spe_def ?? data.stats?.special_defense;
+    this.speed = data.stats?.vit ?? data.stats?.speed;
+  }
+
+  displayCard() {
+    const article = document.createElement('article');
+    const color = this.arrTypes[0]?.color || '#777777';
+    article.style.borderColor = color;
+    article.style.backgroundColor = color;
+
+    const figure = document.createElement('figure');
+    const picture = document.createElement('picture');
+    if (this.image) {
+      const image = document.createElement('img');
+      image.src = this.image;
+      image.alt = this.name;
+      image.loading = 'lazy';
+      picture.append(image);
+    }
+
+    const caption = document.createElement('figcaption');
+    const typeLabel = document.createElement('span');
+    typeLabel.className = 'types';
+    typeLabel.textContent = this.arrTypes.map((type) => type.name).join(' / ') || 'Inconnu';
+    const title = document.createElement('h2');
+    title.textContent = this.name;
+    const stats = document.createElement('ol');
+    for (const [label, value] of [
+      ['Points de vie', this.hp], ['Attaque', this.attack], ['Défense', this.defense],
+      ['Attaque spéciale', this.special_attack], ['Défense spéciale', this.special_defense],
+      ['Vitesse', this.speed],
+    ]) {
+      const item = document.createElement('li');
+      item.textContent = `${label} : ${value ?? '—'}`;
+      stats.append(item);
+    }
+    caption.append(typeLabel, title, stats);
+    figure.append(picture, caption);
+    article.append(figure);
+    return article;
+  }
+}
 
 function getGeneration(number) {
   if (!cache.has(number)) {
@@ -24,7 +91,7 @@ function getGeneration(number) {
       })
       .then((data) => {
         if (!Array.isArray(data)) throw new Error('Réponse Tyradex invalide');
-        return data;
+        return data.map((pokemon) => new Pokémon(pokemon));
       })
       .catch((error) => {
         cache.delete(number);
@@ -46,7 +113,7 @@ function showMessage(message) {
 function renderTypes(pokemonList) {
   const types = new Map();
   for (const pokemon of pokemonList) {
-    for (const type of pokemon?.types || []) {
+    for (const type of pokemon.arrTypes) {
       if (type.name && !types.has(type.name)) types.set(type.name, type.image);
     }
   }
@@ -60,7 +127,8 @@ function renderTypes(pokemonList) {
   allButton.addEventListener('click', () => selectType('all', pokemonList));
   typeFilters.append(allButton);
 
-  for (const [name, image] of types) {
+  for (const name of Object.keys(typeColors)) {
+    const image = types.get(name);
     const button = document.createElement('button');
     button.type = 'button';
     button.title = name;
@@ -72,9 +140,10 @@ function renderTypes(pokemonList) {
       icon.src = image;
       icon.alt = '';
       button.append(icon);
-    } else {
-      button.textContent = name;
     }
+    const label = document.createElement('span');
+    label.textContent = name;
+    button.append(label);
     button.addEventListener('click', () => selectType(name, pokemonList));
     typeFilters.append(button);
   }
@@ -90,9 +159,9 @@ function selectType(type, pokemonList) {
 
 function renderPokemon(pokemonList) {
   const filtered = selectedType === 'all'
-    ? pokemonList
+    ? [...pokemonList]
     : pokemonList.filter((pokemon) =>
-        pokemon?.types?.some((type) => type.name === selectedType));
+        pokemon.arrTypes.some((type) => type.name === selectedType));
 
   main.replaceChildren();
   if (!filtered.length) {
@@ -100,44 +169,21 @@ function renderPokemon(pokemonList) {
     return;
   }
 
+  const compareNames = (first, second) => first.localeCompare(second, 'fr');
+  filtered.sort((first, second) => {
+    if (sortSelect.value === 'name') return compareNames(first.name, second.name);
+    if (sortSelect.value === 'type') {
+      return compareNames(first.arrTypes[0]?.name || '', second.arrTypes[0]?.name || '')
+        || compareNames(first.name, second.name);
+    }
+    return (second[sortSelect.value] ?? -1) - (first[sortSelect.value] ?? -1)
+      || compareNames(first.name, second.name);
+  });
+
   const fragment = document.createDocumentFragment();
   for (const pokemon of filtered) {
-    if (!pokemon || !pokemon.name?.fr) continue;
-    const article = document.createElement('article');
-    const primaryType = pokemon.types?.[0]?.name;
-    const color = typeColors[primaryType] || '#777777';
-    article.style.borderColor = color;
-    article.style.backgroundColor = color;
-
-    const figure = document.createElement('figure');
-    const picture = document.createElement('picture');
-    if (pokemon.sprites?.regular) {
-      const image = document.createElement('img');
-      image.src = pokemon.sprites.regular;
-      image.alt = pokemon.name.fr;
-      image.loading = 'lazy';
-      picture.append(image);
-    }
-
-    const caption = document.createElement('figcaption');
-    const typeLabel = document.createElement('span');
-    typeLabel.className = 'types';
-    typeLabel.textContent = pokemon.types?.map((type) => type.name).join(' / ') || 'Inconnu';
-    const title = document.createElement('h2');
-    title.textContent = pokemon.name.fr;
-    const stats = document.createElement('ol');
-    for (const [label, key] of [
-      ['Points de vie', 'hp'], ['Attaque', 'atk'], ['Défense', 'def'],
-      ['Attaque spéciale', 'spe_atk'], ['Défense spéciale', 'spe_def'], ['Vitesse', 'vit'],
-    ]) {
-      const item = document.createElement('li');
-      item.textContent = `${label} : ${pokemon.stats?.[key] ?? '—'}`;
-      stats.append(item);
-    }
-    caption.append(typeLabel, title, stats);
-    figure.append(picture, caption);
-    article.append(figure);
-    fragment.append(article);
+    if (!pokemon.name) continue;
+    fragment.append(pokemon.displayCard());
   }
   main.append(fragment);
 }
@@ -145,12 +191,14 @@ function renderPokemon(pokemonList) {
 async function loadGeneration() {
   const currentRequest = ++requestNumber;
   selectedType = 'all';
+  currentPokemonList = [];
   typeFilters.replaceChildren();
   showMessage('Chargement des Pokémon…');
 
   try {
     const pokemonList = await getGeneration(generationSelect.value);
     if (currentRequest !== requestNumber) return;
+    currentPokemonList = pokemonList;
     renderTypes(pokemonList);
     renderPokemon(pokemonList);
   } catch (error) {
@@ -161,4 +209,7 @@ async function loadGeneration() {
 }
 
 generationSelect.addEventListener('change', loadGeneration);
+sortSelect.addEventListener('change', () => {
+  if (currentPokemonList.length) renderPokemon(currentPokemonList);
+});
 loadGeneration();
