@@ -1,3 +1,6 @@
+import { Pokemon } from './Pokemon.js';
+import { typeColors } from './Type.js';
+
 const API_URL = 'https://tyradex.app/api/v1';
 const generationSelect = document.querySelector('#generation');
 const languageSelect = document.querySelector('#language');
@@ -6,102 +9,9 @@ const typeFilters = document.querySelector('#types');
 const main = document.querySelector('main');
 const cache = new Map();
 const displayedPokemon = new WeakMap();
-const typeColors = {
-  "Plante": "#78C850",
-  "Feu": "#F08030",
-  "Eau": "#6890F0",
-  "Insecte": "#A8B820",
-  "Normal": "#A8A878",
-  "Poison": "#A040A0",
-  "Électrik": "#F8D030",
-  "Sol": "#E0C068",
-  "Vol": "#A890F0",
-  "Combat": "#C03028",
-  "Psy": "#F85888",
-  "Roche": "#B8A038",
-  "Spectre": "#705898",
-  "Glace": "#98D8D8",
-  "Dragon": "#7038F8",
-  "Ténèbres": "#705848",
-  "Acier": "#B8B8D0",
-  "Fée": "#EE99AC"
-}; 
-
 let selectedType = 'all';
 let currentPokemonList = [];
 let requestNumber = 0;
-
-class Type {
-  constructor(data) {
-    this.name = data.name;
-    this.image = data.image;
-    this.color = this.getColorHexa();
-  }
-
-  getColorHexa() {
-    return typeColors[this.name] || '#777777';
-  }
-}
-
-class Pokémon {
-  constructor(data) {
-    this.id = data.pokedex_id ?? data.pokedexId;
-    this.image = data.sprites?.regular ?? data.image;
-    this.name = data.name?.fr ?? data.name;
-    this.names = typeof data.name === 'object' ? data.name : null;
-    this.apiTypes = data.types ?? data.apiTypes ?? [];
-    this.arrTypes = this.apiTypes.map((type) => new Type(type));
-    this.hp = data.stats?.hp ?? data.stats?.HP;
-    this.attack = data.stats?.atk ?? data.stats?.attack;
-    this.defense = data.stats?.def ?? data.stats?.defense;
-    this.special_attack = data.stats?.spe_atk ?? data.stats?.special_attack;
-    this.special_defense = data.stats?.spe_def ?? data.stats?.special_defense;
-    this.speed = data.stats?.vit ?? data.stats?.speed;
-  }
-
-  getName() {
-    return this.names?.[languageSelect.value] || this.name;
-  }
-
-  displayCard() {
-    const article = document.createElement('article');
-    displayedPokemon.set(article, this);
-    const color = this.arrTypes[0]?.color || '#777777';
-    article.style.borderColor = color;
-    article.style.backgroundColor = color;
-
-    const figure = document.createElement('figure');
-    const picture = document.createElement('picture');
-    if (this.image) {
-      const image = document.createElement('img');
-      image.src = this.image;
-      image.alt = this.getName();
-      image.loading = 'lazy';
-      picture.append(image);
-    }
-
-    const caption = document.createElement('figcaption');
-    const typeLabel = document.createElement('span');
-    typeLabel.className = 'types';
-    typeLabel.textContent = this.arrTypes.map((type) => type.name).join(' / ') || 'Inconnu';
-    const title = document.createElement('h2');
-    title.textContent = this.getName();
-    const stats = document.createElement('ol');
-    for (const [label, value] of [
-      ['Points de vie', this.hp], ['Attaque', this.attack], ['Défense', this.defense],
-      ['Attaque spéciale', this.special_attack], ['Défense spéciale', this.special_defense],
-      ['Vitesse', this.speed],
-    ]) {
-      const item = document.createElement('li');
-      item.textContent = `${label} : ${value ?? '—'}`;
-      stats.append(item);
-    }
-    caption.append(typeLabel, title, stats);
-    figure.append(picture, caption);
-    article.append(figure);
-    return article;
-  }
-}
 
 function getGeneration(number) {
   if (!cache.has(number)) {
@@ -112,7 +22,7 @@ function getGeneration(number) {
       })
       .then((data) => {
         if (!Array.isArray(data)) throw new Error('Réponse Tyradex invalide');
-        return data.map((pokemon) => new Pokémon(pokemon));
+        return data.map((pokemon) => new Pokemon(pokemon));
       })
       .catch((error) => {
         cache.delete(number);
@@ -204,7 +114,9 @@ function renderPokemon(pokemonList) {
   const fragment = document.createDocumentFragment();
   for (const pokemon of filtered) {
     if (!pokemon.name) continue;
-    fragment.append(pokemon.displayCard());
+    const article = pokemon.displayCard(languageSelect.value);
+    displayedPokemon.set(article, pokemon);
+    fragment.append(article);
   }
   main.append(fragment);
 }
@@ -232,7 +144,7 @@ async function loadGeneration() {
 generationSelect.addEventListener('change', loadGeneration);
 languageSelect.addEventListener('change', () => {
   for (const article of main.querySelectorAll('article')) {
-    const name = displayedPokemon.get(article).getName();
+    const name = displayedPokemon.get(article).getName(languageSelect.value);
     article.querySelector('h2').textContent = name;
     const image = article.querySelector('img');
     if (image) image.alt = name;
